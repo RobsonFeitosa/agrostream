@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -33,20 +32,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export const Route = createFileRoute("/")({
-  component: Operations,
-  head: () => ({
-    meta: [
-      { title: "AgroStream Operations — Live Farm Control" },
-      {
-        name: "description",
-        content:
-          "Premium dark-mode operations dashboard with live field NDVI, GPS tractor tracking, weather overlay, and sector alerts for large-scale farms.",
-      },
-    ],
-  }),
-});
 
 type Sector = "All sectors" | "Sector A" | "Sector B" | "Sector C" | "Sector D";
 
@@ -118,12 +103,11 @@ const STATUS_COLORS = {
   bad: { stroke: "rgba(248, 113, 113, 0.95)", fill: "rgba(239, 68, 68, 0.18)", dot: "bg-rose-400" },
 };
 
-function Operations() {
+export default function Index() {
   const [sector, setSector] = useState<Sector>("All sectors");
   const [sectorOpen, setSectorOpen] = useState(false);
   const [layers, setLayers] = useState({ ndvi: true, gps: true, weather: true });
 
-  // Interactivity state
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [fullscreen, setFullscreen] = useState(false);
@@ -134,7 +118,6 @@ function Operations() {
   const [searchFocus, setSearchFocus] = useState(false);
   const [searchQ, setSearchQ] = useState("");
 
-  // Live machinery / moisture simulation
   const [liveTick, setLiveTick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setLiveTick((n) => n + 1), 2500);
@@ -157,11 +140,9 @@ function Operations() {
   const activeMachines = visibleTractors.filter((t) => !t.idle).length;
   const totalMachines = visibleTractors.length;
   const moistureBase = sector === "Sector D" ? 18 : sector === "Sector B" ? 31 : 26;
-  // simulated jitter
   const moisture = Math.max(10, Math.min(40, moistureBase + Math.sin(liveTick / 2) * 2));
   const machineryProgress = ((activeMachines / Math.max(totalMachines, 1)) * 100) + Math.cos(liveTick) * 3;
 
-  // Search results
   const searchResults = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     const sources: { type: string; id: string; label: string; sub: string; field?: Field }[] = [
@@ -181,7 +162,6 @@ function Operations() {
     if (sector !== "All sectors" && f.sector !== sector) setSector("All sectors");
     setHighlightedFieldId(f.id);
     setSelectedField(f);
-    // pan map so the field center sits in the viewport center
     const cx = f.x + f.w / 2;
     const cy = f.y + f.h / 2;
     setZoom(1.4);
@@ -197,7 +177,6 @@ function Operations() {
   return (
     <div className="dark">
       <div className="min-h-screen bg-[#070b10] text-zinc-100">
-        {/* Top bar */}
         <header className="sticky top-0 z-40 border-b border-white/5 bg-[#070b10]/80 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4 px-6 py-3">
             <div className="flex items-center gap-3">
@@ -260,7 +239,6 @@ function Operations() {
               <StatusPill icon={Wifi} label="GPS · 5/5" tone="good" />
               <StatusPill icon={Satellite} label="NDVI · 2h ago" tone="info" />
 
-              {/* Notification bell */}
               <div className="relative">
                 <button
                   onClick={() => { setNotifOpen((v) => !v); setSettingsOpen(false); }}
@@ -301,9 +279,7 @@ function Operations() {
             fullscreen ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_360px]",
           )}
         >
-          {/* Map */}
           <section className="relative overflow-hidden rounded-2xl border border-white/5 bg-[#0b1117] shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]">
-            {/* Map toolbar */}
             <div className="absolute left-4 top-4 z-20 flex items-center gap-2">
               <SectorDropdown value={sector} onChange={setSector} open={sectorOpen} setOpen={setSectorOpen} />
               <LayerToggle layers={layers} setLayers={setLayers} />
@@ -318,12 +294,10 @@ function Operations() {
               </IconBtn>
             </div>
 
-            {/* Zoom indicator */}
             <div className="absolute right-4 top-16 z-20 rounded-md border border-white/5 bg-[#0b1117]/80 px-2 py-1 text-[10px] font-medium text-zinc-400 backdrop-blur">
               {Math.round(zoom * 100)}%
             </div>
 
-            {/* Map canvas */}
             <div className={cn("relative w-full transition-all duration-500", fullscreen ? "h-[calc(100vh-120px)]" : "h-[680px]")}>
               <div
                 className="absolute inset-0 origin-center transition-transform duration-500 ease-out"
@@ -331,7 +305,6 @@ function Operations() {
               >
                 <MapBackground />
 
-                {/* NDVI fields */}
                 {layers.ndvi &&
                   visibleFields.map((f) => {
                     const c = STATUS_COLORS[f.status];
@@ -370,7 +343,6 @@ function Operations() {
                     );
                   })}
 
-                {/* Weather */}
                 {layers.weather &&
                   visibleWeather.map((w) => (
                     <div key={w.id} className="absolute z-10 -translate-x-1/2 -translate-y-1/2" style={{ left: `${w.x}%`, top: `${w.y}%` }}>
@@ -384,7 +356,6 @@ function Operations() {
                     </div>
                   ))}
 
-                {/* Tractors */}
                 {layers.gps &&
                   visibleTractors.map((t) => (
                     <div key={t.id} className="absolute z-10 -translate-x-1/2 -translate-y-1/2" style={{ left: `${t.x}%`, top: `${t.y}%` }}>
@@ -406,12 +377,10 @@ function Operations() {
                   ))}
               </div>
 
-              {/* Detail card overlay */}
               {selectedField && (
                 <FieldDetailCard field={selectedField} onClose={() => setSelectedField(null)} />
               )}
 
-              {/* Legend */}
               <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-2 rounded-xl border border-white/5 bg-[#0b1117]/80 p-3 text-[11px] backdrop-blur">
                 <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">NDVI Vigor</div>
                 <LegendRow color="bg-emerald-400" label="Healthy (0.65 – 1.0)" />
@@ -429,7 +398,6 @@ function Operations() {
             </div>
           </section>
 
-          {/* Side panel */}
           {!fullscreen && (
             <aside className="flex flex-col gap-4">
               <MetricCard
@@ -456,7 +424,6 @@ function Operations() {
                 <MiniStat icon={TrendingUp} label="NDVI avg" value="0.61" tone="amber" />
               </div>
 
-              {/* Alerts */}
               <div className="rounded-2xl border border-white/5 bg-[#0b1117]">
                 <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -564,7 +531,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => document.addEventListener("keydown", onKey);
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in-0">
