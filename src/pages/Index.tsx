@@ -32,53 +32,147 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Map,
+  useMap,
+  AdvancedMarker,
+  InfoWindow,
+  ControlPosition,
+  MapControl
+} from "@vis.gl/react-google-maps";
+
 
 type Sector = "All sectors" | "Sector A" | "Sector B" | "Sector C" | "Sector D";
 
 const SECTORS: Sector[] = ["All sectors", "Sector A", "Sector B", "Sector C", "Sector D"];
 
-type Field = {
+interface Field {
   id: string;
-  sector: Sector;
   name: string;
-  status: "good" | "warn" | "bad";
-  ndvi: number;
-  moisture: number;
+  sector: Sector;
   crop: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-};
+  area: string;
+  ndvi: number;
+  status: "good" | "warn" | "bad";
+  type: "polygon" | "circle";
+  path?: { lat: number; lng: number }[];
+  center?: { lat: number; lng: number };
+  radius?: number;
+}
+
+type Tractor = { id: string; sector: Sector; status: string; fuel: number; speed: number; idle: boolean; driver: string; lat: number; lng: number };
+type Weather = { id: string; sector: Sector; label: string; sub: string; icon: "sun" | "rain" | "cloud" | "wind"; lat: number; lng: number };
+
+const LAT_BASE = -16.8623;
+const LNG_BASE = -47.5784;
 
 const FIELDS: Field[] = [
-  { id: "F-101", sector: "Sector A", name: "North Plot", status: "good", ndvi: 0.85, moisture: 28, crop: "Soy", x: 6, y: 10, w: 22, h: 18 },
-  { id: "F-102", sector: "Sector A", name: "Ridge", status: "good", ndvi: 0.74, moisture: 26, crop: "Corn", x: 30, y: 8, w: 18, h: 14 },
-  { id: "F-103", sector: "Sector B", name: "River Bend", status: "warn", ndvi: 0.51, moisture: 34, crop: "Cotton", x: 50, y: 12, w: 24, h: 20 },
-  { id: "F-104", sector: "Sector B", name: "East Hollow", status: "bad", ndvi: 0.28, moisture: 14, crop: "Soy", x: 76, y: 18, w: 18, h: 16 },
-  { id: "F-105", sector: "Sector C", name: "Mid Stretch", status: "good", ndvi: 0.78, moisture: 27, crop: "Corn", x: 8, y: 34, w: 28, h: 18 },
-  { id: "F-106", sector: "Sector C", name: "Pivot 4", status: "warn", ndvi: 0.55, moisture: 22, crop: "Soy", x: 38, y: 36, w: 20, h: 18 },
-  { id: "F-107", sector: "Sector D", name: "Southwood", status: "good", ndvi: 0.71, moisture: 25, crop: "Cotton", x: 60, y: 38, w: 16, h: 22 },
-  { id: "F-108", sector: "Sector D", name: "Marsh Edge", status: "bad", ndvi: 0.32, moisture: 16, crop: "Corn", x: 78, y: 40, w: 16, h: 20 },
-  { id: "F-109", sector: "Sector A", name: "Lower 40", status: "good", ndvi: 0.69, moisture: 29, crop: "Soy", x: 6, y: 60, w: 24, h: 22 },
-  { id: "F-110", sector: "Sector C", name: "Clay Block", status: "warn", ndvi: 0.49, moisture: 21, crop: "Cotton", x: 34, y: 62, w: 22, h: 20 },
-  { id: "F-111", sector: "Sector D", name: "Far South", status: "good", ndvi: 0.73, moisture: 24, crop: "Corn", x: 60, y: 64, w: 32, h: 20 },
+
+  {
+    id: "F-101",
+    name: "Main Pivot North",
+    sector: "Sector A",
+    crop: "Corn",
+    area: "110 ha",
+    ndvi: 0.88,
+    status: "good",
+    type: "circle",
+    center: { lat: -16.8580, lng: -47.5695 },
+    radius: 360,
+  },
+  {
+    id: "F-103",
+    name: "West Pivot Green",
+    sector: "Sector A",
+    crop: "Cotton",
+    area: "95 ha",
+    ndvi: 0.45,
+    status: "warn",
+    type: "circle",
+    center: { lat: -16.8645, lng: -47.5855 },
+    radius: 320,
+  },
+  {
+    id: "F-102",
+    name: "Central Soybean",
+    sector: "Sector B",
+    crop: "Soybeans",
+    area: "145 ha",
+    ndvi: 0.76,
+    status: "good",
+    type: "polygon",
+    path: [
+      { lat: -16.8610, lng: -47.5780 },
+      { lat: -16.8610, lng: -47.5730 },
+      { lat: -16.8660, lng: -47.5730 },
+      { lat: -16.8660, lng: -47.5780 },
+    ],
+  },
+  {
+    id: "F-104",
+    name: "East Rectangle",
+    sector: "Sector C",
+    crop: "Wheat",
+    area: "68 ha",
+    ndvi: 0.32,
+    status: "bad",
+    type: "polygon",
+    path: [
+      { lat: -16.8665, lng: -47.5720 },
+      { lat: -16.8665, lng: -47.5680 },
+      { lat: -16.8710, lng: -47.5680 },
+      { lat: -16.8710, lng: -47.5720 },
+    ],
+  },
+  {
+    id: "F-105",
+    name: "Southwest Block",
+    sector: "Sector D",
+    crop: "Soybeans",
+    area: "112 ha",
+    ndvi: 0.72,
+    status: "good",
+    type: "polygon",
+    path: [
+      { lat: -16.8670, lng: -47.5830 },
+      { lat: -16.8730, lng: -47.5830 },
+      { lat: -16.8730, lng: -47.5790 },
+      { lat: -16.8670, lng: -47.5790 },
+    ],
+  },
+  {
+    id: "F-106",
+    name: "Small Central",
+    sector: "Sector B",
+    crop: "Corn",
+    area: "32 ha",
+    ndvi: 0.58,
+    status: "warn",
+    type: "polygon",
+    path: [
+      { lat: -16.8662, lng: -47.5775 },
+      { lat: -16.8662, lng: -47.5755 },
+      { lat: -16.8678, lng: -47.5755 },
+      { lat: -16.8678, lng: -47.5775 },
+    ],
+  }
 ];
 
-const TRACTORS = [
-  { id: "TR-07", driver: "M. Alvarez", x: 18, y: 18, sector: "Sector A" as Sector, speed: 8.4, idle: false },
-  { id: "TR-12", driver: "K. Park", x: 62, y: 22, sector: "Sector B" as Sector, speed: 6.1, idle: false },
-  { id: "TR-03", driver: "J. Okafor", x: 22, y: 44, sector: "Sector C" as Sector, speed: 0, idle: true },
-  { id: "TR-19", driver: "S. Müller", x: 70, y: 50, sector: "Sector D" as Sector, speed: 11.2, idle: false },
-  { id: "TR-22", driver: "L. Tanaka", x: 44, y: 72, sector: "Sector C" as Sector, speed: 5.6, idle: false },
+const TRACTORS: Tractor[] = [
+  { id: "TR-01", sector: "Sector B", status: "Active", fuel: 82, speed: 8.4, idle: false, driver: "M. Alvarez", lat: -16.8623, lng: -47.5784 },
+  { id: "TR-03", sector: "Sector C", status: "Idle", fuel: 45, speed: 0, idle: true, driver: "J. Okafor", lat: -16.8645, lng: -47.5812 },
+  { id: "TR-07", sector: "Sector B", status: "Active", fuel: 76, speed: 11.2, idle: false, driver: "P. Santos", lat: -16.8605, lng: -47.5745 },
+  { id: "TR-19", sector: "Sector B", status: "Active", fuel: 89, speed: 12.5, idle: false, driver: "A. Paula", lat: -16.8590, lng: -47.5730 },
+  { id: "TR-22", sector: "Sector A", status: "Active", fuel: 91, speed: 9.6, idle: false, driver: "L. Lima", lat: -16.8575, lng: -47.5700 },
 ];
 
-const WEATHER = [
-  { id: "w1", icon: "rain", label: "12mm", x: 58, y: 14, sector: "Sector B" as Sector },
-  { id: "w2", icon: "sun", label: "28°C", x: 14, y: 28, sector: "Sector A" as Sector },
-  { id: "w3", icon: "cloud", label: "22°C", x: 40, y: 50, sector: "Sector C" as Sector },
-  { id: "w4", icon: "wind", label: "24km/h", x: 80, y: 60, sector: "Sector D" as Sector },
+const WEATHER: Weather[] = [
+  { id: "w1", sector: "Sector B", label: "12mm", sub: "Rain", icon: "rain", lat: -16.8665, lng: -47.5740 },
+  { id: "w2", sector: "Sector A", label: "28°C", sub: "Sunny", icon: "sun", lat: -16.8560, lng: -47.5670 },
+  { id: "w3", sector: "Sector C", label: "22°C", sub: "Cloudy", icon: "cloud", lat: -16.8685, lng: -47.5780 },
+  { id: "w4", sector: "Sector D", label: "24km/h", sub: "Windy", icon: "wind", lat: -16.8625, lng: -47.5860 },
 ];
+
 
 type Alert = {
   id: string;
@@ -108,9 +202,8 @@ export default function Index() {
   const [sectorOpen, setSectorOpen] = useState(false);
   const [layers, setLayers] = useState({ ndvi: true, gps: true, weather: true });
 
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [fullscreen, setFullscreen] = useState(false);
+
   const [selectedField, setSelectedField] = useState<Field | null>(null);
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -154,7 +247,12 @@ export default function Index() {
     return sources.filter((s) => s.label.toLowerCase().includes(q) || s.sub.toLowerCase().includes(q)).slice(0, 8);
   }, [searchQ]);
 
-  const handleZoom = (delta: number) => setZoom((z) => Math.max(0.6, Math.min(2.2, +(z + delta).toFixed(2))));
+  const map = useMap("onemap");
+
+  const handleZoom = (delta: number) => {
+    if (!map) return;
+    map.setZoom((map.getZoom() || 15) + delta);
+  };
 
   const focusField = (fieldId: string) => {
     const f = FIELDS.find((x) => x.id === fieldId);
@@ -162,17 +260,45 @@ export default function Index() {
     if (sector !== "All sectors" && f.sector !== sector) setSector("All sectors");
     setHighlightedFieldId(f.id);
     setSelectedField(f);
-    const cx = f.x + f.w / 2;
-    const cy = f.y + f.h / 2;
-    setZoom(1.4);
-    setPan({ x: (50 - cx), y: (50 - cy) });
+    
+    if (map) {
+      if (f.type === "circle" && f.center) {
+        map.panTo(f.center);
+      } else if (f.type === "polygon" && f.path) {
+        map.panTo(f.path[0]);
+      }
+      map.setZoom(17);
+    }
     setTimeout(() => setHighlightedFieldId(null), 2400);
   };
 
   const resetView = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
+    if (map && visibleFields.length > 0) {
+      const bounds = new google.maps.LatLngBounds();
+
+      visibleFields.forEach(f => {
+        if (f.type === "circle" && f.center && f.radius) {
+          const circleBounds = new google.maps.Circle({ center: f.center, radius: f.radius }).getBounds();
+          if (circleBounds) bounds.union(circleBounds);
+        } else if (f.type === "polygon" && f.path) {
+          f.path.forEach(p => bounds.extend(p));
+        }
+      });
+
+      map.fitBounds(bounds);
+    } else if (map) {
+      map.panTo({ lat: LAT_BASE, lng: LNG_BASE });
+      map.setZoom(17);
+    }
   };
+
+
+  useEffect(() => {
+    if (map && visibleFields.length > 0) {
+      resetView();
+    }
+  }, [map, sector]);
+
 
   return (
     <div className="dark">
@@ -279,7 +405,8 @@ export default function Index() {
             fullscreen ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_360px]",
           )}
         >
-          <section className="relative overflow-hidden rounded-2xl border border-white/5 bg-[#0b1117] shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]">
+          <section className="relative flex flex-col overflow-hidden rounded-2xl border border-white/5 bg-[#0b1117] shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] lg:h-[calc(100vh-100px)]">
+
             <div className="absolute left-4 top-4 z-20 flex items-center gap-2">
               <SectorDropdown value={sector} onChange={setSector} open={sectorOpen} setOpen={setSectorOpen} />
               <LayerToggle layers={layers} setLayers={setLayers} />
@@ -294,58 +421,46 @@ export default function Index() {
               </IconBtn>
             </div>
 
-            <div className="absolute right-4 top-16 z-20 rounded-md border border-white/5 bg-[#0b1117]/80 px-2 py-1 text-[10px] font-medium text-zinc-400 backdrop-blur">
-              {Math.round(zoom * 100)}%
-            </div>
 
-            <div className={cn("relative w-full transition-all duration-500", fullscreen ? "h-[calc(100vh-120px)]" : "h-[680px]")}>
-              <div
-                className="absolute inset-0 origin-center transition-transform duration-500 ease-out"
-                style={{ transform: `translate(${pan.x}%, ${pan.y}%) scale(${zoom})` }}
+
+            <div className={cn("relative w-full flex-1 transition-all duration-500")}>
+
+
+              <Map
+                id="onemap"
+                mapId={"bf51a910020fa25a"}
+                defaultZoom={17}
+                defaultCenter={{
+                  lat: -16.8623,
+                  lng: -47.5784,
+                }}
+
+                gestureHandling={"greedy"}
+                disableDefaultUI={true}
+                className="w-full h-full"
+                mapTypeId="satellite"
               >
-                <MapBackground />
-
                 {layers.ndvi &&
-                  visibleFields.map((f) => {
-                    const c = STATUS_COLORS[f.status];
-                    const isHighlighted = highlightedFieldId === f.id;
-                    const isSelected = selectedField?.id === f.id;
-                    return (
-                      <button
-                        key={f.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedField(f);
-                        }}
-                        className={cn(
-                          "group absolute rounded-md transition-all duration-300 hover:z-10 hover:brightness-150 cursor-pointer",
-                          (isHighlighted || isSelected) && "z-10 brightness-150 ring-2 ring-white/80",
-                          isHighlighted && "animate-pulse",
-                        )}
-                        style={{
-                          left: `${f.x}%`,
-                          top: `${f.y}%`,
-                          width: `${f.w}%`,
-                          height: `${f.h}%`,
-                          background: c.fill,
-                          border: `1.5px solid ${c.stroke}`,
-                          boxShadow: `inset 0 0 30px ${c.fill}`,
-                        }}
-                      >
-                        <div className="absolute left-1.5 top-1 flex items-center gap-1.5 text-[10px] font-medium text-white/90">
-                          <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
-                          {f.id}
-                        </div>
-                        <div className="absolute bottom-1 right-1.5 rounded bg-black/40 px-1.5 py-0.5 text-[10px] text-white/80 opacity-0 transition-opacity group-hover:opacity-100">
-                          NDVI {f.ndvi.toFixed(2)} · {f.name}
-                        </div>
-                      </button>
-                    );
-                  })}
+
+                  visibleFields.map((f) => (
+                    <MapPolygon
+                      key={f.id}
+                      field={f}
+                      isSelected={selectedField?.id === f.id}
+                      isHighlighted={highlightedFieldId === f.id}
+                      onClick={() => setSelectedField(f)}
+                    />
+                  ))}
 
                 {layers.weather &&
                   visibleWeather.map((w) => (
-                    <div key={w.id} className="absolute z-10 -translate-x-1/2 -translate-y-1/2" style={{ left: `${w.x}%`, top: `${w.y}%` }}>
+                    <AdvancedMarker
+                      key={w.id}
+                      position={{
+                        lat: w.lat,
+                        lng: w.lng,
+                      }}
+                    >
                       <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2 py-1 text-[11px] text-white/90 backdrop-blur">
                         {w.icon === "rain" && <CloudRain className="h-3.5 w-3.5 text-sky-400" />}
                         {w.icon === "sun" && <Sun className="h-3.5 w-3.5 text-amber-300" />}
@@ -353,12 +468,18 @@ export default function Index() {
                         {w.icon === "wind" && <Wind className="h-3.5 w-3.5 text-cyan-300" />}
                         <span className="font-medium">{w.label}</span>
                       </div>
-                    </div>
+                    </AdvancedMarker>
                   ))}
 
                 {layers.gps &&
                   visibleTractors.map((t) => (
-                    <div key={t.id} className="absolute z-10 -translate-x-1/2 -translate-y-1/2" style={{ left: `${t.x}%`, top: `${t.y}%` }}>
+                    <AdvancedMarker
+                      key={t.id}
+                      position={{
+                        lat: t.lat,
+                        lng: t.lng,
+                      }}
+                    >
                       <div className="relative">
                         {!t.idle && <span className="absolute inset-0 -m-2 animate-ping rounded-full bg-emerald-400/40" />}
                         <div
@@ -373,9 +494,11 @@ export default function Index() {
                           {t.id} · {t.idle ? "idle" : `${t.speed} km/h`}
                         </div>
                       </div>
-                    </div>
+                    </AdvancedMarker>
                   ))}
-              </div>
+
+              </Map>
+
 
               {selectedField && (
                 <FieldDetailCard field={selectedField} onClose={() => setSelectedField(null)} />
@@ -399,7 +522,8 @@ export default function Index() {
           </section>
 
           {!fullscreen && (
-            <aside className="flex flex-col gap-4">
+            <aside className="flex flex-col gap-4 overflow-y-auto lg:h-[calc(100vh-100px)] pr-2 custom-scrollbar">
+
               <MetricCard
                 title="Active Machinery"
                 value={`${activeMachines}/${totalMachines}`}
@@ -666,34 +790,77 @@ function FieldDetailCard({ field, onClose }: { field: Field; onClose: () => void
   );
 }
 
-function MapBackground() {
+function MapPolygon({ 
+  field, 
+  isSelected, 
+  isHighlighted, 
+  onClick 
+}: { 
+  field: Field; 
+  isSelected: boolean; 
+  isHighlighted: boolean; 
+  onClick: () => void 
+}) {
+  const map = useMap("onemap");
+  const shapeRef = useRef<google.maps.Polygon | google.maps.Circle | null>(null);
+
+  useEffect(() => {
+    if (!map) return;
+
+    const c = STATUS_COLORS[field.status];
+    const commonOptions = {
+      strokeColor: isSelected || isHighlighted ? "#ffffff" : c.stroke,
+      strokeOpacity: 0.8,
+      strokeWeight: isSelected || isHighlighted ? 3 : 1.5,
+      fillColor: c.fill.split(",")[0].replace("rgba(", "").trim() === "rgba(34" ? "#22c55e" : field.status === "warn" ? "#eab308" : "#ef4444",
+      fillOpacity: isSelected || isHighlighted ? 0.4 : 0.2,
+      map: map,
+    };
+
+    let shape: google.maps.Polygon | google.maps.Circle;
+
+    if (field.type === "circle" && field.center && field.radius) {
+      shape = new google.maps.Circle({
+        ...commonOptions,
+        center: field.center,
+        radius: field.radius,
+      });
+    } else if (field.type === "polygon" && field.path) {
+      shape = new google.maps.Polygon({
+        ...commonOptions,
+        paths: field.path,
+      });
+    } else {
+      return;
+    }
+
+    shape.addListener("click", onClick);
+    shapeRef.current = shape;
+
+    return () => {
+      shape.setMap(null);
+    };
+  }, [map, field, isSelected, isHighlighted, onClick]);
+
+  const labelPos = field.type === "circle" ? field.center : field.path?.[0];
+  const c = STATUS_COLORS[field.status];
+
+  if (!labelPos) return null;
+
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 30% 20%, #0f1f1a 0%, #0a1310 40%, #060a0c 100%)" }} />
-      <svg className="absolute inset-0 h-full w-full opacity-[0.18]" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
-            <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(120,180,140,0.35)" strokeWidth="0.5" />
-          </pattern>
-          <pattern id="grid2" width="240" height="240" patternUnits="userSpaceOnUse">
-            <path d="M 240 0 L 0 0 0 240" fill="none" stroke="rgba(120,180,140,0.5)" strokeWidth="0.8" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-        <rect width="100%" height="100%" fill="url(#grid2)" />
-      </svg>
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path d="M -2 30 C 20 28, 30 50, 50 48 S 80 70, 102 60" stroke="rgba(56,189,248,0.35)" strokeWidth="1.6" fill="none" />
-        <path d="M -2 30 C 20 28, 30 50, 50 48 S 80 70, 102 60" stroke="rgba(56,189,248,0.12)" strokeWidth="4" fill="none" />
-      </svg>
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path d="M 0 90 L 40 86 L 55 70 L 70 68 L 100 55" stroke="rgba(255,255,255,0.18)" strokeWidth="0.6" strokeDasharray="1.2 1.2" fill="none" />
-      </svg>
-      <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl" />
-    </div>
+    <>
+      <AdvancedMarker position={labelPos}>
+        <div className="pointer-events-none flex items-center gap-1.5 rounded-md bg-black/40 px-1.5 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm border border-white/5 shadow-xl">
+          <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
+          {field.id}
+        </div>
+      </AdvancedMarker>
+    </>
   );
 }
+
+
+
 
 function SectorDropdown({ value, onChange, open, setOpen }: { value: Sector; onChange: (s: Sector) => void; open: boolean; setOpen: (o: boolean) => void }) {
   return (
