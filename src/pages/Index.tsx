@@ -53,6 +53,7 @@ interface Field {
   crop: string;
   area: string;
   ndvi: number;
+  moisture: number;
   status: "good" | "warn" | "bad";
   type: "polygon" | "circle";
   path?: { lat: number; lng: number }[];
@@ -75,6 +76,7 @@ const FIELDS: Field[] = [
     crop: "Corn",
     area: "110 ha",
     ndvi: 0.88,
+    moisture: 28,
     status: "good",
     type: "circle",
     center: { lat: -16.8580, lng: -47.5695 },
@@ -87,6 +89,7 @@ const FIELDS: Field[] = [
     crop: "Cotton",
     area: "95 ha",
     ndvi: 0.45,
+    moisture: 19,
     status: "warn",
     type: "circle",
     center: { lat: -16.8645, lng: -47.5855 },
@@ -99,6 +102,7 @@ const FIELDS: Field[] = [
     crop: "Soybeans",
     area: "145 ha",
     ndvi: 0.76,
+    moisture: 32,
     status: "good",
     type: "polygon",
     path: [
@@ -115,6 +119,7 @@ const FIELDS: Field[] = [
     crop: "Wheat",
     area: "68 ha",
     ndvi: 0.32,
+    moisture: 14,
     status: "bad",
     type: "polygon",
     path: [
@@ -131,6 +136,7 @@ const FIELDS: Field[] = [
     crop: "Soybeans",
     area: "112 ha",
     ndvi: 0.72,
+    moisture: 26,
     status: "good",
     type: "polygon",
     path: [
@@ -147,6 +153,7 @@ const FIELDS: Field[] = [
     crop: "Corn",
     area: "32 ha",
     ndvi: 0.58,
+    moisture: 21,
     status: "warn",
     type: "polygon",
     path: [
